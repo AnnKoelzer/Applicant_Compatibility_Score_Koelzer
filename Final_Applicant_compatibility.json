@@ -1,0 +1,145 @@
+##Team Data:
+[
+    {
+    "name" : "Ann",
+    "intelligence" : 1,
+    "creativity" : 5,
+    "communication" : 3,
+    "experience" : 1
+    },
+    {
+        "name" : "Lexi",
+        "intelligence" : 9,
+        "creativity" : 4,
+        "communication" : 1,
+        "experience" : 6
+    },
+    {
+        "name" : "Sarah",
+        "intelligence" : 3,
+        "experience" : 2,
+        "communication" : 9,
+        "creativity" :5 
+    }
+]
+
+##Applicant Data
+[
+    {
+    "name" : "Cindy",
+    "intelligence" : 3,
+    "creativity" : 1,
+    "communication" : 9,
+    "experience" : 2
+    },
+    {
+        "name" : "Grace",
+        "intelligence" : 4,
+        "creativity" : 5,
+        "communication" : 6,
+        "experience" : 7
+    },
+    {
+        "name" : "Samantha",
+        "intelligence" : 8,
+        "experience" : 1,
+        "communication" : 3,
+        "creativity" :4 
+    }
+]
+
+##Importing team data from JSON file into MYSQL: consisting of three people and four attributes
+SELECT * FROM tuk33468.team_table;
+
+##Altered team table to add 5 columns. These columns will be for the weighted attributes as well as the score
+ALTER TABLE tuk33468.team_table
+ADD COLUMN intelligence_weight FLOAT Default 0,
+ADD COLUMN creativity_weight float default 0,
+ADD column communication_weight float default 0,
+Add column experience_weight float default 0,
+Add column scores float default 0;
+
+##To encorporate the above columns into team_table, I created team_table_two. I assigned a weight for each attribute according to their importance.
+Create table team_table_two AS
+SELECT name,
+	intelligence * 0.2 AS intelligence_weight,
+	creativity * 0.3 AS creativity_weight,
+	communication * 0.35 AS communication_weight,
+	experience * 0.15 AS experience_weight,
+	intelligence,
+    creativity,
+    experience,
+    communication
+FROM team_table;
+
+Select * from team_table_two;
+
+##Joining original table (team_table) with new weighted scores table (team_table_two)
+SELECT tuk33468.team_table.*, team_table_two.*
+FROM tuk33468.team_table
+JOIN team_table_two
+ON team_table.name = team_table_two.name;
+
+##I created another table with only weighted attributes as well as a column which calculates the weighted average for each person
+Create table t3 AS
+SELECT name,
+	intelligence_weight,
+    communication_weight,
+    experience_weight,
+    creativity_weight,
+	(team_table_two.intelligence_weight + team_table_two.creativity_weight + team_table_two.communication_weight + team_table_two.experience_weight) / 1 As score
+FROM team_table_two;
+
+SELECT * from t3;
+
+## This is the applicant table, I copied the above steps and inserted columns for weighted attributes and their scores
+ALTER TABLE tuk33468.applicant
+ADD COLUMN intelligence_weight FLOAT Default 0,
+ADD COLUMN creativity_weight float default 0,
+ADD column communication_weight float default 0,
+Add column experience_weight float default 0,
+Add column score float default 0;
+
+## Here, I am creating a new table that will encompass the weighted attributes, original attributes, and score column
+Create table applicant_table_two AS
+SELECT name,
+	intelligence * 0.2 AS intelligence_weight,
+	creativity * 0.3 AS creativity_weight,
+	communication * 0.35 AS communication_weight,
+	experience * 0.15 AS experience_weight,
+	intelligence,
+    creativity,
+    experience,
+    communication
+FROM tuk33468.applicant;
+
+SELECT * from applicant_table_two;
+
+###Creating new table (xapp) to put the weighted attributes and weighted average per person.
+Create table a3 AS
+SELECT distinct name,
+	intelligence_weight,
+    communication_weight,
+    experience_weight,
+    creativity_weight,
+	(applicant_table_two.intelligence_weight + applicant_table_two.creativity_weight + applicant_table_two.communication_weight + applicant_table_two.experience_weight) / 1 As score
+FROM applicant_table_two;
+
+SELECT * FROM a3;
+
+##Comparing compatibility of each applicant to each team member
+SELECT 
+    a3.name AS applicant_name,
+    t3.name AS team_member_name,
+    1 - (ABS(a3.score - t3.score) / ((5 * a3.intelligence_weight) + (5 * a3.creativity_weight) + (5 * a3.communication_weight) + (5 * a3.experience_weight))) AS compatibility
+FROM a3
+CROSS JOIN t3
+ORDER BY applicant_name, team_member_name;
+
+##Final compatibility score of each applicant based on averaging the compatibility score between applicant and each team member
+SELECT 
+    c.name AS applicant_name,
+    AVG((c.score * t.score) / 100) AS compatibility_score
+FROM combined_table c
+JOIN t3 t ON c.teamname = t.name
+GROUP BY c.name;
